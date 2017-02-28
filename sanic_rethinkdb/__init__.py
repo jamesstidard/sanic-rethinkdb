@@ -11,7 +11,6 @@ r.set_loop_type('asyncio')
 class RethinkDB:
 
     def __init__(self, app=None):
-        self.app = app
         self._connection_maker = r.connect
         self._connections = {}
 
