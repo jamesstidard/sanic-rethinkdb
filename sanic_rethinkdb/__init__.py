@@ -10,12 +10,12 @@ r.set_loop_type('asyncio')
 
 class RethinkDB:
 
-    def __init__(self, app=None):
+    def __init__(self, app=None, *, ssl=None):
         self._connection_maker = r.connect
         self._connections = {}
 
         if app is not None:
-            self.init_app(app)
+            self.init_app(app, ssl=ssl)
 
     def init_app(self, app, *, ssl=None):
         if not ssl:
