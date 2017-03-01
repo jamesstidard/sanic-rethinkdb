@@ -10,6 +10,7 @@ setup(
     author_email='jamesstidard@gmail.com',
     description='A simple RethinkDB extension for Sanic',
     keywords='sanic database rethinkdb extension',
+    platforms=['any'],
     install_requires=[
         'rethinkdb',
         'sanic'])
