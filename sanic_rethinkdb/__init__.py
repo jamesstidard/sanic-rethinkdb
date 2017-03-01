@@ -17,11 +17,16 @@ class RethinkDB:
         if app is not None:
             self.init_app(app)
 
-    def init_app(self, app):
+    def init_app(self, app, *, ssl=None):
+        if not ssl:
+            ssl = {}
+
         app.config.setdefault('RETHINKDB_HOST', 'localhost')
         app.config.setdefault('RETHINKDB_PORT', '28015')
-        app.config.setdefault('RETHINKDB_AUTH', '')
         app.config.setdefault('RETHINKDB_DB', 'test')
+        app.config.setdefault('RETHINKDB_AUTH', '')
+        app.config.setdefault('RETHINKDB_USER', 'admin')
+        app.config.setdefault('RETHINKDB_PASSWORD', '')
 
         @app.listener('after_server_stop')
         async def teardown():
@@ -29,10 +34,13 @@ class RethinkDB:
             await asyncio.wait(closers)
 
         self._connection_maker = partial(r.connect,
-                                         auth_key=app.config.RETHINKDB_AUTH,
                                          host=app.config.RETHINKDB_HOST,
                                          port=app.config.RETHINKDB_PORT,
-                                         db=app.config.RETHINKDB_DB)
+                                         db=app.config.RETHINKDB_DB,
+                                         auth_key=app.config.RETHINKDB_AUTH,
+                                         user=app.config.RETHINKDB_USER,
+                                         password=app.config.RETHINKDB_PASSWORD,
+                                         ssl=ssl)
 
     async def connection(self):
         pid = os.getpid()
