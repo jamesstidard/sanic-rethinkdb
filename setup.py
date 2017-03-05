@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='sanic_rethinkdb',
-    version='0.1',
+    version='0.1.5',
     packages=['sanic_rethinkdb'],
     url='https://github.com/jamesstidard/sanic-rethinkdb',
     license='MIT',

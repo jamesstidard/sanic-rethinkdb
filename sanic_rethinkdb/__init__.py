@@ -1,51 +1,74 @@
-import os
 import asyncio
-
-from functools import partial
 
 import rethinkdb as r
 
 r.set_loop_type('asyncio')
 
 
-class RethinkDB:
+class Settings:
 
-    def __init__(self, app=None, *, ssl=None):
-        self._connection_maker = r.connect
-        self._connections = {}
-
-        if app is not None:
-            self.init_app(app, ssl=ssl)
-
-    def init_app(self, app, *, ssl=None):
+    def __init__(self, host='localhost', port=28015, db='test', user='admin', password=None, auth_key=None, ssl=None):
         if not ssl:
             ssl = {}
 
-        app.config.setdefault('RETHINKDB_HOST', 'localhost')
-        app.config.setdefault('RETHINKDB_PORT', '28015')
-        app.config.setdefault('RETHINKDB_DB', 'test')
-        app.config.setdefault('RETHINKDB_AUTH', '')
-        app.config.setdefault('RETHINKDB_USER', 'admin')
-        app.config.setdefault('RETHINKDB_PASSWORD', '')
+        self.host = host
+        self.port = port
+        self.db = db
+        self.user = user
+        self.password = password
+        self.auth_key = auth_key
+        self.ssl = ssl
+
+
+class RethinkDB:
+
+    def __init__(self, app=None, *, settings: Settings=None):
+        self._connections = set()
+        self._settings = settings
+
+        if app is not None:
+            self.init_app(app, settings=settings)
+
+    def init_app(self, app, *, settings: Settings=None):
+        if not settings:
+            settings = Settings()
+
+        settings.host = app.config.setdefault('RETHINKDB_HOST', settings.host)
+        settings.port = app.config.setdefault('RETHINKDB_PORT', settings.port)
+        settings.db   = app.config.setdefault('RETHINKDB_DB', settings.db)
+        settings.user = app.config.setdefault('RETHINKDB_USER', settings.user)
+        settings.password = app.config.setdefault('RETHINKDB_PASSWORD', settings.password)
+        settings.auth_key = app.config.setdefault('RETHINKDB_AUTH', settings.auth_key)
+        settings.ssl = app.config.setdefault('RETHINKDB_SSL', settings.ssl)
+
+        self._settings = settings
 
         @app.listener('after_server_stop')
-        async def teardown():
+        async def teardown(*_):
             closers = [c.close for c in self._connections]
             await asyncio.wait(closers)
 
-        self._connection_maker = partial(r.connect,
-                                         host=app.config.RETHINKDB_HOST,
-                                         port=app.config.RETHINKDB_PORT,
-                                         db=app.config.RETHINKDB_DB,
-                                         auth_key=app.config.RETHINKDB_AUTH,
-                                         user=app.config.RETHINKDB_USER,
-                                         password=app.config.RETHINKDB_PASSWORD,
-                                         ssl=ssl)
-
     async def connection(self):
-        pid = os.getpid()
-        if pid in self._connections:
-            return self._connections[pid]
-        else:
-            connection = await self._connection_maker()
-            return self._connections.setdefault(pid, connection)
+        connection = await r.connect(
+            host=self._settings.host,
+            port=self._settings.port,
+            db=self._settings.db,
+            user=self._settings.user,
+            password=self._settings.password,
+            auth_key=self._settings.auth_key,
+            ssl=self._settings.ssl)
+        self._connections.add(connection)
+        return connection
+
+    async def drop_and_remake(self, model):
+        connection = await self.connection()
+
+        try:
+            await r.db_drop(self._settings.db).run(connection)
+        except r.errors.ReqlOpFailedError as e:
+            pass
+
+        await r.db_create(self._settings.db).run(connection)
+
+        for table_name, options in model.items():
+            await r.db(self._settings.db).table_create(table_name, **options).run(connection)
