@@ -1,6 +1,8 @@
 # sanic-rethinkdb
 A simple RethinkDB extension for Sanic.
 
+Warning: very much a work-in-progress. Not nailed down how I'd want this to work yet. Also be aware the connection isn't threadsafe if you are using multiple workers.
+
 ## Installation
 ```bash
 $ pip install sanic_rethinkdb
