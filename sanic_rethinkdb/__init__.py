@@ -45,7 +45,7 @@ class RethinkDB:
 
         @app.listener('after_server_stop')
         async def teardown(*_):
-            closers = [c.close for c in self._connections]
+            closers = [c.close() for c in self._connections]
             await asyncio.wait(closers)
 
     async def connection(self):
